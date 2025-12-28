@@ -99,13 +99,8 @@ class CTCPClient:
         if self._on_disconnect:
             self._on_disconnect()
 
-    # 1. C 언어 write() 형식의 send 구현
-    def send(self, data: bytes) -> None:
-        """
-        [C write(fd, buf, size) 형식] 지정된 바이트열을 모두 전송합니다.
 
-        :param data: 전송할 바이트열 (str은 지원하지 않음)
-        """
+    def send(self, data: bytes) -> None:
         if not self._sock or not self._is_connected:
             raise RuntimeError("TCPClient is not connected")
 
@@ -132,14 +127,8 @@ class CTCPClient:
             else:
                 raise
 
-    # 2. C 언어 read() 형식의 recv_exact 구현
-    def recv_exact(self, size: int) -> bytes:
-        """
-        [C read(fd, buf, size) 형식] 요청된 크기(size)만큼의 바이트를 수신할 때까지 블로킹합니다.
 
-        :param size: 수신을 기다릴 바이트 크기
-        :return: 수신된 바이트열 (정확히 size 크기)
-        """
+    def recv_exact(self, size: int) -> bytes:
         if not self._sock or not self._is_connected:
             raise RuntimeError("TCPClient is not connected")
 
@@ -172,11 +161,8 @@ class CTCPClient:
 
         return b''.join(chunks)
 
-    # 3. 비동기 수신 루프 수정
+
     def _recv_loop(self):
-        """
-        데이터 수신 스레드. 데이터 청크가 들어올 때마다 콜백을 호출합니다.
-        """
         while not self._stop_event.is_set():
             try:
                 if not self._sock:
