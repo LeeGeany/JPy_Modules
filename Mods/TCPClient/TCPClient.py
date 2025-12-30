@@ -83,7 +83,6 @@ class CTCPClient:
         self._stop_event.set()
         self._is_connected = False
 
-        # ... (나머지 disconnect 로직은 유지)
         if self._sock:
             try:
                 self._sock.shutdown(socket.SHUT_RDWR)
@@ -93,7 +92,6 @@ class CTCPClient:
             self._sock = None
 
         if self._recv_thread and self._recv_thread.is_alive():
-            # 스레드 종료 대기 (가급적 짧게)
             self._recv_thread.join(timeout=0.1)
 
         if self._on_disconnect:
@@ -128,38 +126,38 @@ class CTCPClient:
                 raise
 
 
-    def recv_exact(self, size: int) -> bytes:
-        if not self._sock or not self._is_connected:
-            raise RuntimeError("TCPClient is not connected")
-
-        chunks: List[bytes] = []
-        bytes_recd = 0
-
-        # 소켓 타임아웃은 self.timeout을 따릅니다.
-        while bytes_recd < size:
-            try:
-                # 남은 바이트 수만큼만 요청하거나, 버퍼 크기만큼 요청
-                remaining = size - bytes_recd
-                chunk = self._sock.recv(min(remaining, self.recv_buffer))
-
-                if not chunk:
-                    # 연결 끊김
-                    raise ConnectionResetError("socket connection broken during recv")
-
-                chunks.append(chunk)
-                bytes_recd += len(chunk)
-
-            except socket.timeout:
-                # 타임아웃 발생 시, 아직 size만큼 다 받지 못했으면 재시도 (while 루프 유지)
-                continue
-            except Exception as e:
-                # 그 외 오류 처리
-                if self._on_error:
-                    self._on_error(e)
-                self.disconnect()
-                raise
-
-        return b''.join(chunks)
+    # def recv_exact(self, size: int) -> bytes:
+    #     if not self._sock or not self._is_connected:
+    #         raise RuntimeError("TCPClient is not connected")
+    #
+    #     chunks: List[bytes] = []
+    #     bytes_recd = 0
+    #
+    #     # 소켓 타임아웃은 self.timeout을 따릅니다.
+    #     while bytes_recd < size:
+    #         try:
+    #             # 남은 바이트 수만큼만 요청하거나, 버퍼 크기만큼 요청
+    #             remaining = size - bytes_recd
+    #             chunk = self._sock.recv(min(remaining, self.recv_buffer))
+    #
+    #             if not chunk:
+    #                 # 연결 끊김
+    #                 raise ConnectionResetError("socket connection broken during recv")
+    #
+    #             chunks.append(chunk)
+    #             bytes_recd += len(chunk)
+    #
+    #         except socket.timeout:
+    #             # 타임아웃 발생 시, 아직 size만큼 다 받지 못했으면 재시도 (while 루프 유지)
+    #             continue
+    #         except Exception as e:
+    #             # 그 외 오류 처리
+    #             if self._on_error:
+    #                 self._on_error(e)
+    #             self.disconnect()
+    #             raise
+    #
+    #     return b''.join(chunks)
 
 
     def _recv_loop(self):

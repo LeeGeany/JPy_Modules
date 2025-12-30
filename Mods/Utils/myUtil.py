@@ -9,17 +9,46 @@ from geographiclib.geodesic import Geodesic
     @params val 비교할 대상
     @return 범위에 있으면 True, 없으면 False
 """
-def isRange(max, min, val) -> bool:
+def is_range(max, min, val) -> bool:
     if val > max or val < min:
         return False
     else:
         return True
 
 """
+    @brief 문자열이 정수인지 확인한다.
+"""
+def is_integer(text : str) -> bool:
+    try:
+        int(text)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+"""
+    @brief 문자열이 양수 인지 확인한다.
+"""
+def is_positive(text : str) -> bool:
+    try:
+        _value = float(text)
+        return _value >= 0
+    except (ValueError, TypeError):
+        return False
+
+"""
+    @brief 문자열이 음수 인지 확인한다.
+"""
+def is_negative(text : str) -> bool:
+    try:
+        _value = float(text)
+        return _value < 0
+    except (ValueError, TypeError):
+        return False
+"""
     @brief  val 값이 소수인지 확인하는 함수
     @return 소수이면 True, 아니면 False
 """
-def isFloat(s) -> bool:
+def is_float(s) -> bool:
     try:
         float(s)   # 정수 문자열도 float 변환 가능
         return True
