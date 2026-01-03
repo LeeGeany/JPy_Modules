@@ -7,12 +7,14 @@
     1) 없음
 '''
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot , QThread
+from PyQt5.QtCore import pyqtSignal, QThread, QObject, pyqtSlot, QMetaObject, Qt, Q_ARG
 
 class CProgressBarWorker(QObject):
     sg_finished     = pyqtSignal(object)
     sg_progress     = pyqtSignal(int)
     sg_error        = pyqtSignal(str)
+    sg_changeLabel  = pyqtSignal(str)
+
 
     def __init__(self, func):
         super().__init__()
@@ -22,7 +24,7 @@ class CProgressBarWorker(QObject):
     def run(self):
         try:
             # 인자 전달 없이, 오직 진행률 콜백 함수 하나만 넘겨줍니다.
-            result = self.func(self.sg_progress.emit)
+            result = self.func(self.sg_progress.emit, self.sg_changeLabel.emit)
             self.sg_finished.emit(result)
         except Exception as e:
             self.sg_error.emit(str(e))
@@ -48,6 +50,7 @@ class CProgressBar(QtWidgets.QProgressDialog):
         self.worker.sg_progress.connect(self.setValue)
         self.worker.sg_finished.connect(self.on_finished)
         self.worker.sg_error.connect(self.on_error)
+        self.worker.sg_changeLabel.connect(self.changeLabel)
 
         # 취소 버튼 클릭 시 처리
         self.canceled.connect(self.on_canceled)
@@ -72,3 +75,6 @@ class CProgressBar(QtWidgets.QProgressDialog):
         if self.thread.isRunning():
             self.thread.terminate()
             self.thread.wait()
+
+    def changeLabel(self, _str):
+        self.setLabelText(_str)

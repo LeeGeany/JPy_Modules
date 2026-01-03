@@ -42,8 +42,8 @@ class CFileIO(QtWidgets.QWidget):
 
     def read_file(self):
         if self.readFunc is not None:
-            progressbar_ = CProgressBar(title="파일 읽는 중...", func=self.readFunc)
-            progressbar_.run()
+            progressbar = CProgressBar(title="메시지 파일 읽기", func=self.readFunc)
+            progressbar.run()
 
     def search_file(self):
         fname, _ = QtWidgets.QFileDialog.getOpenFileName(
