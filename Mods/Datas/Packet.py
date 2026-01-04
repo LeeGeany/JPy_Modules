@@ -1,12 +1,11 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, make_dataclass
 import struct
-from typing import ClassVar, Tuple, List, Type
+from typing import ClassVar, List, Tuple, Any, Dict, Type
+from typing import Dict
 
 # --- 1. 타입-포맷 매핑 정의 ---
 # struct 모듈의 포맷 문자를 파이썬 타입에 매핑합니다.
 # Big-Endian '>' 기준으로 정의합니다.
-from typing import Dict
-
 # short, long, long long 등 다양한 크기의 정수 및 실수 타입을 추가했습니다.
 TYPE_FORMAT_MAP: Dict[str, str] = {
     # ------------------------------------
@@ -88,6 +87,36 @@ class FixedNamePacket(Packet):
         ('session_id', 0),
         ('name', 10)  # '10s'
     ]
+
+
+def create_dynamic_packet_class(class_name: str, fields_info: Dict[str, Any]) -> Type[Packet]:
+    """
+    런타임에 동적으로 Packet 클래스를 생성합니다.
+
+    :param class_name: 생성할 클래스 이름 (예: 'DynamicStatusPacket')
+    :param fields_info: {필드명: (타입, 포맷_또는_길이)} 형식의 딕셔너리
+    :return: Packet을 상속받은 새로운 클래스
+    """
+
+    # 1. dataclass 필드 정의 (이름, 타입)
+    # fields_info 예시: {'hp': (int, 'H'), 'name': (str, 20)}
+    ds_fields = []
+    packet_format = []
+
+    for name, (f_type, f_format) in fields_info.items():
+        ds_fields.append((name, f_type))
+        packet_format.append((name, f_format))
+
+    # 2. make_dataclass를 사용하여 클래스 생성
+    # bases=(Packet,) 을 통해 기존 패킹/언패킹 로직과 호환되게 함
+    dynamic_class = make_dataclass(
+        class_name,
+        fields=ds_fields,
+        bases=(Packet,),
+        namespace={'PACKET_FORMAT': packet_format}  # PACKET_FORMAT 클래스 변수 주입
+    )
+
+    return dynamic_class
 
 
 def packet_Pack(packet: Packet) -> bytes:
