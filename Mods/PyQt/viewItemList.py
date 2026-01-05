@@ -24,7 +24,7 @@ class CListViewWorker(QObject):
         self.sg_list_refresh.emit(_obj)
 
 
-class CListView(QtWidgets.QListView):  # QListView를 직접 상속
+class CItemList(QtWidgets.QListView):  # QListView를 직접 상속
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -43,18 +43,21 @@ class CListView(QtWidgets.QListView):  # QListView를 직접 상속
         # 시그널 연결
         self.worker.sg_list_refresh.connect(self.setModel)
 
-
     def addList(self, _listName : str):
         self.nameList.append(_listName)
 
     def addAllList(self, _listAllname : list):
         self.nameList = _listAllname
 
-    def removeList(self, idx : int):
-        self.nameList.pop(idx)
+    def removeList(self, _idx : int):
+        if self.nameList:
+            self.nameList.pop(_idx)
 
     def removeAllList(self):
         self.nameList.clear()
+
+    def selectIndex(self):
+        return self.currentIndex()
 
     def refreshList(self):
         self.model.setStringList(self.nameList)

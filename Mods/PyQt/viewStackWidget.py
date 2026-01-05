@@ -64,6 +64,6 @@ class CStackWidget(QtWidgets.QStackedWidget):
                 QMetaObject.invokeMethod(self.worker, "on_switch_stacked_no",
                                          Qt.QueuedConnection,
                                          Q_ARG(int, value))
-            else:
-                print(f"Error: '{_name}' 이름의 페이지를 찾을 수 없습니다.")
+            # else:
+            #     print(f"Error: '{_name}' 이름의 페이지를 찾을 수 없습니다.")
 
