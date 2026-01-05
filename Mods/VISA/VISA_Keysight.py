@@ -5,30 +5,26 @@ from Mods.VISA.VISA_Keysight_M9484C import CVISA_keysight_M9484C
 from Mods.VISA.VISA_Keysight_N9040B import CVISA_Keysight_N9040B
 
 class CVISA_Keysight:
-    def __init__(self, _ip, _port):
-        self.m_ip = _ip
-        self.m_port = _port
+    def __init__(self):
         self.m_ResourceManger = pyvisa.ResourceManager()
         self.m_vxg = None
         self.m_ctrl = None
 
-
-        self.OpenKeysight()
-        equip_ = str(self.WhoAreYou())
-        name_ = self.FindEquipKeysight(equip_)
-
-        if name_ == "M9484C":
-            self.m_ctrl = CVISA_keysight_M9484C(self.m_vxg)
-        elif name_ == "N9040B":
-            self.m_ctrl = CVISA_Keysight_N9040B(self.m_vxg)
-        else:
-            print("Equipment not recognized")
-
-    def OpenKeysight(self):
+    def OpenKeysight(self, _ip):
         try:
             self.m_vxg = self.m_ResourceManger.open_resource(
-                f"TCPIP0::{self.m_ip}::inst0::INSTR"
+                f"TCPIP0::{_ip}::inst0::INSTR"
             )
+
+            equip_  = str(self.WhoAreYou())
+            name_   = self.FindEquipKeysight(equip_)
+
+            if name_ == "M9484C":
+                self.m_ctrl = CVISA_keysight_M9484C(self.m_vxg)
+            elif name_ == "N9040B":
+                self.m_ctrl = CVISA_Keysight_N9040B(self.m_vxg)
+            else:
+                print("Equipment not recognized")
         except pyvisa.VisaIOError as e:
             print(e)
 
@@ -50,7 +46,6 @@ class CVISA_Keysight:
             return "N9040B"
         else:
             return "Equipment not recognized"
-
 
     def ResetKeysight(self):
         self.m_vxg.write("&RST")

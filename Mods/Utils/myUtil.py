@@ -1,6 +1,6 @@
 import sys
 import os
-from geographiclib.geodesic import Geodesic
+#from geographiclib.geodesic import Geodesic
 
 """
     @brief  val 값이 max, min 사이에 있는지 확인하는 함수  
