@@ -48,6 +48,7 @@ class CBitElement(QtWidgets.QWidget):
         self.layout = QtWidgets.QVBoxLayout(self)
 
         self.layout.addWidget(CLine())
+        self.layout.addWidget(QtWidgets.QLabel("[비트필드 메시지]"))
         for key, value in self.dict.items():
             element_ = CDefaultElement({key:value})
             self.layout.addWidget(element_)
@@ -70,6 +71,7 @@ class CIterElement(QtWidgets.QWidget):
         self.layout = QtWidgets.QVBoxLayout(self)
 
         self.layout.addWidget(CLine())
+        self.layout.addWidget(QtWidgets.QLabel("[서브 메시지]"))
 
         self.inner_layout = QtWidgets.QHBoxLayout(self)
         self.itemlist   = CItemList(self); self.itemlist.setFixedSize(300, 50)
@@ -95,8 +97,6 @@ class CIterElement(QtWidgets.QWidget):
 
         #
         self.layout.setContentsMargins(0, 0, 0, 0)
-        #self.layout.setSpacing(5)
-
         self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
 
         #
