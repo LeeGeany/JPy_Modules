@@ -1,22 +1,12 @@
-from dataclasses import dataclass, field, make_dataclass
+from dataclasses import dataclass, make_dataclass
 import struct
-from typing import ClassVar, List, Tuple, Any, Dict, Type
+from typing import ClassVar, List, Tuple, Any,  Type
 from typing import Dict
 
-# --- 1. 타입-포맷 매핑 정의 ---
-# struct 모듈의 포맷 문자를 파이썬 타입에 매핑합니다.
-# Big-Endian '>' 기준으로 정의합니다.
-# short, long, long long 등 다양한 크기의 정수 및 실수 타입을 추가했습니다.
 TYPE_FORMAT_MAP: Dict[str, str] = {
-    # ------------------------------------
-    # 기본 정수/불리언 (Default 4B Int)
-    # ------------------------------------
     'int': 'i',  # 4 bytes Signed Int (기본값)
     'bool': '?',  # 1 byte Boolean
 
-    # ------------------------------------
-    # 다양한 크기의 정수 (추가된 정수 포맷)
-    # ------------------------------------
     'int_1b_signed': 'b',  # 1 byte Signed Char
     'int_1b_unsigned': 'B',  # 1 byte Unsigned Char
     'int_2b_signed': 'h',  # 2 bytes Signed Short
@@ -26,43 +16,69 @@ TYPE_FORMAT_MAP: Dict[str, str] = {
     'int_8b_signed': 'q',  # 8 bytes Signed Long Long
     'int_8b_unsigned': 'Q',  # 8 bytes Unsigned Long Long
 
-    # ------------------------------------
-    # 실수 (Float/Double)
-    # ------------------------------------
     'float': 'f',  # 4 bytes Float (단정밀도)
     'double': 'd',  # 8 bytes Double (배정밀도, 파이썬 float와 매칭)
 
-    # ------------------------------------
-    # 문자열/바이트열 (가변 길이 처리 필요)
-    # ------------------------------------
     'str': 's',
     'bytes': 's'
 }
 
+# ============================================================
+# Packet Base
+# ============================================================
 @dataclass
 class Packet:
-    """모든 데이터 구조체의 기반 클래스."""
-    # 직렬화 포맷을 지정하는 클래스 변수 (struct 포맷 문자와 동일)
-    # ClassVar를 사용하여 인스턴스에 포함되지 않도록 합니다.
-    # 이 딕셔너리의 키는 멤버 변수 이름과 일치할 필요는 없지만 순서는 중요합니다.
     PACKET_FORMAT: ClassVar[List[Tuple[str, str | int]]] = []
 
-# 예제
+# ============================================================
+# Example Packet
+# ============================================================
 @dataclass
-class UserInfoPacket(Packet):
-    """예시 1: 사용자 기본 정보 (고정 길이)"""
-    user_id: int
-    age: int
-    is_active: bool
+class CDataTCPHeader(Packet):
+    source: int
+    dest: int
+    cmd: int
+    type: int
+    time: int
+    size: int
 
-    # [필드명, struct 타입의 고정 길이(문자열/바이트 제외 시 0)]
-    PACKET_FORMAT: ClassVar[List[Tuple[str, int]]] = [
-        ('user_id', 0),  # 'i'
-        ('age', 0),  # 'i' 또는 'h'
-        ('is_active', 0)  # '?'
+    PACKET_FORMAT: ClassVar[
+        List[Tuple[str, str]]
+    ] = [
+        ("source", "I"),
+        ("dest",   "I"),
+        ("cmd",    "I"),
+        ("type",   "I"),
+        ("time",   "I"),
+        ("size",   "I"),
     ]
 
-#예제
+# ============================================================
+# Example
+# 4 byte integer × 1024
+# ============================================================
+@dataclass
+class CDataPacket(Packet):
+    source: int
+    dest: int
+    cmd: int
+    type: int
+    time: int
+    size: int
+    data: List[int]
+
+    PACKET_FORMAT: ClassVar[
+        List[Tuple[str, str]]
+    ] = [
+        ("source", "I"),
+        ("dest",   "I"),
+        ("cmd",    "I"),
+        ("type",   "I"),
+        ("time",   "I"),
+        ("size",   "I"),
+        ("data",   "1024I"),
+    ]
+
 @dataclass
 class TextMessagePacket(Packet):
     """예시 2: 가변 길이 문자열을 포함한 메시지 (가변 길이 처리 필요)"""
@@ -75,7 +91,6 @@ class TextMessagePacket(Packet):
         # message 필드는 전송 시 길이를 헤더로 추가할 것입니다.
     ]
 
-#예제
 @dataclass
 class FixedNamePacket(Packet):
     """예시 3: 고정 길이 문자열을 포함한 패킷"""
@@ -89,17 +104,11 @@ class FixedNamePacket(Packet):
     ]
 
 
+# ============================================================
+# Dynamic Packet
+# ============================================================
 def create_dynamic_packet_class(class_name: str, fields_info: Dict[str, Any]) -> Type[Packet]:
-    """
-    런타임에 동적으로 Packet 클래스를 생성합니다.
 
-    :param class_name: 생성할 클래스 이름 (예: 'DynamicStatusPacket')
-    :param fields_info: {필드명: (타입, 포맷_또는_길이)} 형식의 딕셔너리
-    :return: Packet을 상속받은 새로운 클래스
-    """
-
-    # 1. dataclass 필드 정의 (이름, 타입)
-    # fields_info 예시: {'hp': (int, 'H'), 'name': (str, 20)}
     ds_fields = []
     packet_format = []
 
@@ -107,148 +116,220 @@ def create_dynamic_packet_class(class_name: str, fields_info: Dict[str, Any]) ->
         ds_fields.append((name, f_type))
         packet_format.append((name, f_format))
 
-    # 2. make_dataclass를 사용하여 클래스 생성
-    # bases=(Packet,) 을 통해 기존 패킹/언패킹 로직과 호환되게 함
     dynamic_class = make_dataclass(
         class_name,
         fields=ds_fields,
         bases=(Packet,),
-        namespace={'PACKET_FORMAT': packet_format}  # PACKET_FORMAT 클래스 변수 주입
+        namespace={
+            "PACKET_FORMAT": packet_format
+        }
     )
 
     return dynamic_class
 
 
+# ============================================================
+# Pack
+# ============================================================
 def packet_Pack(packet: Packet) -> bytes:
-    fields_to_pack = []
-    format_chars = []
 
-    for field_name, format_or_size in packet.PACKET_FORMAT:
+    format_chars = []
+    fields_to_pack = []
+
+    for field_name, format_spec in packet.PACKET_FORMAT:
+
         field_value = getattr(packet, field_name)
 
-        if isinstance(format_or_size, str):
-            # 💡 수정된 핵심 로직: 'H', 'B', 'I' 등의 명시적 포맷 문자열을 최우선으로 사용
-            format_chars.append(format_or_size)
-            fields_to_pack.append(field_value)
+        # ----------------------------------------
+        # struct format
+        # ----------------------------------------
 
-        elif isinstance(format_or_size, int):
-            # 고정 길이 (N) 또는 기본 타입 추론 (0) 처리
+        if isinstance(format_spec, str):
 
-            field_type_str = type(field_value).__name__
+            format_chars.append(format_spec)
 
-            if field_type_str == 'str':
-                # 고정 길이 문자열 (N > 0) 처리
-                fixed_size = format_or_size
-                data_bytes = field_value.encode('utf-8')
-                format_chars.append(f'{fixed_size}s')
-                fields_to_pack.append(data_bytes[:fixed_size].ljust(fixed_size, b'\x00'))
+            # 배열
+            if format_spec[0].isdigit():
 
-            elif format_or_size == 0:
-                # 기본 타입 추론 (N = 0)
-                format_char = TYPE_FORMAT_MAP.get(field_type_str)
-                if not format_char: raise ValueError(f"지원하지 않는 타입: {field_type_str}")
-                format_chars.append(format_char)
+                if not isinstance(field_value, (list, tuple)):
+                    raise TypeError(
+                        f"'{field_name}' must be list or tuple."
+                    )
+
+                # 예: 1024I
+                count = int(
+                    format_spec[:len(format_spec)
+                    - len(format_spec.lstrip("0123456789"))]
+                )
+
+                if len(field_value) != count:
+                    raise ValueError(
+                        f"'{field_name}' requires {count} elements, "
+                        f"but got {len(field_value)}."
+                    )
+
+                fields_to_pack.extend(field_value)
+
+            else:
                 fields_to_pack.append(field_value)
 
-            else:
-                # 가변 길이 문자열 (이전 로직)은 여기에서 분기해야 함
-                raise NotImplementedError("Pack 로직: 정의되지 않은 int 값 처리 방식")
+        # ----------------------------------------
+        # Fixed string
+        # ----------------------------------------
 
-        # ... (이후 로직은 이전 답변을 참고)
+        elif isinstance(format_spec, int):
 
-    # Big-Endian으로 엔디안 통일
-    final_format = '>' + ''.join(format_chars)
+            if format_spec <= 0:
+                raise ValueError(
+                    f"Invalid fixed size: {format_spec}"
+                )
+
+            if not isinstance(field_value, str):
+                raise TypeError(
+                    f"'{field_name}' must be str."
+                )
+
+            data_bytes = field_value.encode("utf-8")
+
+            format_chars.append(
+                f"{format_spec}s"
+            )
+
+            fields_to_pack.append(
+                data_bytes[:format_spec].ljust(
+                    format_spec,
+                    b"\x00"
+                )
+            )
+
+        else:
+            raise TypeError(
+                f"Invalid format for '{field_name}'."
+            )
+
+    final_format = "<" + "".join(format_chars)
 
     try:
-        data_bytes = struct.pack(final_format, *fields_to_pack)
-        print(f"[*] 패킹 완료. 포맷: {final_format}, 크기: {struct.calcsize(final_format)} bytes")
-        return data_bytes
-    except struct.error as e:
-        print(f"[!] 데이터 패킹 오류: {e}")
-        raise
 
-
-# (주의: 이 예제에서는 string/variable length 처리를 단순화했습니다.
-# 전체 코드를 통합하려면 가장 최신 버전의 Pack 함수를 사용해야 합니다.)
-
-
-# --- 1. 타입-포맷 매핑 정의 (다시 사용) ---
-# 이 예제에서는 PACKET_FORMAT에 포맷을 직접 명시하는 것이 가장 좋습니다.
-# 여기서는 이전 로직과의 호환성을 위해 필드 이름을 기반으로 포맷을 추론합니다.
-def _get_struct_format_char(field_name: str) -> str:
-    """필드 이름 기반으로 struct 포맷 문자를 추론합니다."""
-    if field_name in ['user_id', 'age', 'sender_id', 'session_id']:
-        return 'i'  # 4 bytes Signed Integer
-    elif field_name in ['is_active']:
-        return '?'  # 1 byte Boolean
-    # 다른 타입이 필요하면 여기에 추가합니다.
-    raise TypeError(f"필드 '{field_name}'의 struct 포맷을 추론할 수 없습니다.")
-
-
-# --- Unpack 함수 (역직렬화) 수정 버전 ---
-def packet_Unpack(packet_class: Type['Packet'], data_bytes: bytes) -> 'Packet':
-    """
-    고정 길이 필드만 처리하며, Big-Endian (>)으로 역직렬화합니다.
-    """
-    format_chars = []
-
-    # 1. 패킷 전체의 struct 포맷 문자열을 동적으로 생성
-    # format_or_size는 'H', 'B' (str) 또는 10 (int) 등이 될 수 있습니다.
-    for field_name, format_or_size in packet_class.PACKET_FORMAT:
-
-        if isinstance(format_or_size, str):
-            # 명시적 포맷 문자열 ('H', 'B', 'i', 'I' 등)인 경우
-            format_chars.append(format_or_size)
-
-        elif isinstance(format_or_size, int):
-            # 숫자 값인 경우 (주로 고정 길이 문자열 Ns 처리)
-            fixed_size = format_or_size
-
-            if fixed_size > 0:
-                # 고정 길이 문자열 (예: '10s')
-                format_chars.append(f'{fixed_size}s')
-            else:
-                # fixed_size == 0 인 경우: 원래 기본 타입 추론을 해야 하나,
-                # 현재는 PACKET_FORMAT에 명시적 포맷을 넣으므로 이 로직은 불필요하거나 오류를 유발합니다.
-                # (만약 0이 들어온다면 _get_struct_format_char 사용)
-                # 여기서는 오류 방지를 위해 임시로 'i'로 가정합니다.
-                # 사용자님의 PACKET_FORMAT에는 0이 없으므로 안전합니다.
-                format_chars.append('i')
-        else:
-            raise TypeError(f"PACKET_FORMAT의 '{field_name}' 필드 포맷({format_or_size})이 유효하지 않습니다.")
-
-    final_format = '>' + ''.join(format_chars)
-    packet_size = struct.calcsize(final_format)
-
-    print(f"\n--- {packet_class.__name__} 역직렬화 시작 ---")
-    print(f"📦 예상 포맷: {final_format}, 예상 크기: {packet_size} bytes")
-
-    # 2. 크기 확인
-    if len(data_bytes) != packet_size:
-        raise ValueError(
-            f"❌ 크기 불일치: {packet_class.__name__}에 필요한 크기는 {packet_size} bytes이나, "
-            f"{len(data_bytes)} bytes가 입력되었습니다."
+        data_bytes = struct.pack(
+            final_format,
+            *fields_to_pack
         )
 
-    # 3. 바이트열 전체를 한 번에 언패킹 (Big-Endian 사용)
-    unpacked_tuple = struct.unpack(final_format, data_bytes)
+    except struct.error as e:
 
-    # 4. 언패킹된 튜플을 필드 이름과 매핑
+        raise ValueError(
+            f"Packet packing failed. "
+            f"format={final_format}"
+        ) from e
+
+    return data_bytes
+
+
+# ============================================================
+# Unpack
+# ============================================================
+def packet_Unpack(packet_class: Type[Packet], data_bytes: bytes, _endian = ">") -> Packet:
+
+    format_chars = []
+
+    for field_name, format_spec in packet_class.PACKET_FORMAT:
+
+        if isinstance(format_spec, str):
+
+            format_chars.append(format_spec)
+
+        elif isinstance(format_spec, int):
+
+            if format_spec <= 0:
+                raise ValueError(
+                    f"Invalid fixed size: {format_spec}"
+                )
+
+            format_chars.append(
+                f"{format_spec}s"
+            )
+
+        else:
+
+            raise TypeError(
+                f"Invalid format for '{field_name}'."
+            )
+
+    final_format = _endian + "".join(format_chars)
+
+    packet_size = struct.calcsize(final_format)
+    #print(f"packet_size {packet_size} : {len(data_bytes)}" )
+    if len(data_bytes) != packet_size:
+
+        raise ValueError(
+            f"Packet size mismatch: "
+            f"expected={packet_size}, "
+            f"received={len(data_bytes)}"
+        )
+
     unpacked_values = {}
+    unpacked_tuple = struct.unpack(
+        final_format,
+        data_bytes
+    )
+
     tuple_index = 0
 
-    for field_name, format_or_size in packet_class.PACKET_FORMAT:
-        field_value = unpacked_tuple[tuple_index]
+    for field_name, format_spec in packet_class.PACKET_FORMAT:
 
-        # 문자열 처리 시에만 디코딩 및 널 바이트 제거
-        # format_or_size가 int 타입(고정 길이 N)일 때만 문자열 처리
-        if isinstance(format_or_size, int) and format_or_size > 0:
-            unpacked_bytes = field_value
-            field_value = unpacked_bytes.rstrip(b'\x00').decode('utf-8')
+        # ----------------------------------------
+        # Array
+        # ----------------------------------------
 
-        unpacked_values[field_name] = field_value
-        tuple_index += 1
+        if isinstance(format_spec, str) and format_spec[0].isdigit():
 
-        print(f"  > 필드 '{field_name}': {field_value}")
+            count_str = format_spec[
+                :len(format_spec)
+                - len(format_spec.lstrip("0123456789"))
+            ]
 
-    return packet_class(**unpacked_values)
+            count = int(count_str)
+
+            unpacked_values[field_name] = list(
+                unpacked_tuple[
+                    tuple_index:
+                    tuple_index + count
+                ]
+            )
+
+            tuple_index += count
+
+        # ----------------------------------------
+        # Fixed string
+        # ----------------------------------------
+
+        elif isinstance(format_spec, int):
+
+            value = unpacked_tuple[tuple_index]
+
+            value = value.rstrip(
+                b"\x00"
+            ).decode(
+                "utf-8"
+            )
+
+            unpacked_values[field_name] = value
+
+            tuple_index += 1
+
+        # ----------------------------------------
+        # Normal field
+        # ----------------------------------------
+
+        else:
+
+            unpacked_values[field_name] = (
+                unpacked_tuple[tuple_index]
+            )
+
+            tuple_index += 1
+
+    return packet_class(
+        **unpacked_values
+    )

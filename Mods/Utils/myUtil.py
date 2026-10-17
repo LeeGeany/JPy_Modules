@@ -91,8 +91,6 @@ def bytes_to_codes(byte_data: bytes):
 def ASCII_to_codes(text : str) -> bytes:
     return bytes.fromhex(text)
 
-
-
 def dms2degree(degrees, minutes, seconds, direction=None):
     decimal = abs(degrees) + minutes / 60 + seconds / 3600
 
