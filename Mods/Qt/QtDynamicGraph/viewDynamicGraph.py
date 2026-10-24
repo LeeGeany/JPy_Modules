@@ -15,8 +15,6 @@ class CViewDynamicGraph(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self._view_model = CViewModelDynamicGraph(self)
-
         self._create_ui()
         self._connect_signals()
 
@@ -29,7 +27,9 @@ class CViewDynamicGraph(QWidget):
         self._graph_timer.timeout.connect(self._update_graph)
         self._graph_timer.start()
 
-    def _create_ui(self):
+        self._view_model = CViewModelDynamicGraph(self, self._plot)
+
+    def _create_ui(self, _style = "line"):
         pg.setConfigOptions(
             useOpenGL=True,
             antialias=False
@@ -44,91 +44,45 @@ class CViewDynamicGraph(QWidget):
             pen=pg.mkPen(
                 color=(255, 255, 0),
                 width=2
-            )
+            ),
+            symbol=None
         )
-        self._vertical_line = None
 
-
+        if _style == "line":
+            self._curve.setPen(
+                pg.mkPen(color=(255, 255, 0), width=2)
+            )
+            self._curve.setSymbol(None)
+        elif _style == "point":
+            self._curve.setPen(None)
+            self._curve.setSymbol("o")
+            self._curve.setSymbolSize(5)
+            self._curve.setSymbolPen(
+                pg.mkPen(color=(255, 255, 0), width=1)
+            )
+            self._curve.setSymbolBrush(
+                pg.mkBrush(color=(255, 255, 0))
+            )
+        elif _style == "both":
+            self._curve.setPen(
+                pg.mkPen(color=(255, 255, 0), width=2)
+            )
+            self._curve.setSymbol("o")
+            self._curve.setSymbolSize(5)
+            self._curve.setSymbolPen(
+                pg.mkPen(color=(255, 255, 0), width=1)
+            )
+            self._curve.setSymbolBrush(
+                pg.mkBrush(color=(255, 255, 0))
+            )
+        else:
+            raise ValueError(
+                f"Unsupported graph style: {_style}"
+            )
 
         layout = QVBoxLayout(self)
         layout.addWidget(self._plot)
 
-    def _connect_signals(self):
-        self._view_model.signal_grid_changed.connect(
-            self._on_grid_changed
-        )
-
-        self._view_model.signal_data_changed.connect(
-            self._on_data_changed
-        )
-
-        self._view_model.signal_x_range_changed.connect(
-            self._on_x_range_changed
-        )
-
-        self._view_model.signal_y_range_changed.connect(
-            self._on_y_range_changed
-        )
-
-        self._view_model.signal_vertical_line_changed.connect(
-            self._on_vertical_line_changed
-        )
-
-        self._view_model.signal_clear.connect(
-            self._on_clear
-        )
-
-    @Slot(bool, bool, float)
-    def _on_grid_changed(self, x_grid, y_grid, alpha):
-        self._plot.showGrid(x_grid, y_grid, alpha=alpha)
-
-    @Slot(object)
-    def _on_data_changed(self, data):
-        # 이 슬롯에서는 그리지 않고 최신 데이터만 저장
-        self._pending_data = np.asarray(
-            data, dtype=np.float64
-        ).reshape(-1)
-
-    @Slot()
-    def _update_graph(self):
-        if self._pending_data is None:
-            return
-
-        data = self._pending_data
-        self._pending_data = None
-
-        self._curve.setData(data)
-
-    @Slot(int, int)
-    def _on_x_range_changed(self, x_min, x_max):
-        self._plot.setXRange(x_min, x_max)
-
-    @Slot(int, int)
-    def _on_y_range_changed(self, y_min, y_max):
-        self._plot.setYRange(y_min, y_max)
-
-    @Slot(int)
-    def _on_vertical_line_changed(self, x):
-        if self._vertical_line is not None:
-            self._plot.removeItem(self._vertical_line)
-        self._vertical_line = pg.InfiniteLine(
-            pos=x,
-            angle=90,
-            movable=False,
-            pen=pg.mkPen(
-                color=(255, 0, 0),
-                width=1
-            )
-        )
-        self._plot.addItem(self._vertical_line)
-
-    @Slot()
-    def _on_clear(self):
-        self._pending_data = None
-        if self._vertical_line is not None:
-            self._plot.removeItem(self._vertical_line)
-            self._vertical_line = None
-        self._curve.clear()
 
     # ----------------------------------------
     # User Interface
